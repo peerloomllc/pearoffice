@@ -294,3 +294,17 @@ Consequences: competitor list lives in `/home/tim/peerloomllc/APP-IDEAS.md`.
 Tier: T0 (branding, no wire effect)
 Choice: PearSheet, kept from the APP-IDEAS placeholder. Repo
 github.com/peerloomllc/pearsheet (private for now).
+
+## 2026-10-06 - Sheets, docs and slides ship as one app
+Tier: T0 (product scope)
+Context: the suite could ship spreadsheets, documents and slides as one app or
+as separate apps. Google splits them, but its account and Drive tie the apps
+together. LibreOffice, Collabora, OnlyOffice and the Microsoft 365 mobile app
+ship one app. In our apps the app itself holds pairing, the group, device keys
+and the seeder.
+Choice: one app. Documents (phase 2, absorbing PearNote) and any later slides
+live inside it.
+Consequences: one pairing, one seeder and one release pipeline. Separate apps
+would have needed cross-app identity sharing first. Costs: one store listing
+reaches fewer searches than three, and the name "PearSheet" only describes
+spreadsheets, so it may need a broader name before documents ship.
