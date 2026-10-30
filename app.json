@@ -38,6 +38,9 @@
           ]
         }
       ],
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -81,17 +84,10 @@
       "./plugins/with-ios-pod-deployment-target",
       "./plugins/with-ios-scene-lifecycle",
       [
-        "expo-camera",
-        {
-          "cameraPermission": "PearOffice uses the camera to scan invite, device and seeder QR codes.",
-          "microphonePermission": "PearOffice does not record sound. iOS asks because the camera, which PearOffice uses to scan QR codes, can also record it.",
-          "recordAudioAndroid": false
-        }
-      ],
-      [
         "expo-image-picker",
         {
           "photosPermission": "PearOffice adds the photos you choose to your documents.",
+          "cameraPermission": "PearOffice uses the camera to scan invite, device and seeder QR codes, and to take photos for your documents.",
           "microphonePermission": "PearOffice does not record sound. iOS asks because the camera, which PearOffice uses to scan QR codes, can also record it."
         }
       ]

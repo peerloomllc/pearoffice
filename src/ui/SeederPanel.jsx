@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowSquareOut, CaretLeft, CircleNotch, QrCode as QrIcon, X } from '@phosphor-icons/react'
 import { call } from './bridge.js'
+import { scanQr } from './scanQr.js'
 import { toSvg } from '../shared/qr.js'
 import { isMobile } from './sheet/xlsx.js'
 import { openUrl } from './About.jsx'
@@ -171,7 +172,7 @@ export function SeederPanel ({ initialLink = '', onBack = null, onClose, onError
 
   async function scan () {
     try {
-      const { text } = await call('app:scanQr')
+      const text = await scanQr()
       if (!text) return
       if (!PREFIXES.some((p) => String(text).startsWith(p))) return setModal({ title: 'Could not pair', text: 'That QR code is not a seeder code.', onClose: close, closeLabel: 'OK' })
       pair(String(text))
