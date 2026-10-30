@@ -4,8 +4,7 @@
 // src/ui/mobile-entry.js on top of the WebView bridge.
 
 import React, { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, AppState, BackHandler, Keyboard, Linking, Modal, NativeModules, Platform, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View, useColorScheme } from 'react-native'
-import { CameraView, useCameraPermissions } from 'expo-camera'
+import { ActivityIndicator, AppState, BackHandler, Keyboard, Linking, NativeModules, PermissionsAndroid, Platform, Share, StatusBar, StyleSheet, Text, View, useColorScheme } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import { Worklet } from 'react-native-bare-kit'
@@ -219,8 +218,6 @@ export default function App () {
   const reloadPage = () => { loaded.current = false; setPage((n) => n + 1) }
   const [error, setError] = useState(null)
   const web = useRef(null)
-  const [scanning, setScanning] = useState(false)
-  const scanDone = useRef(null) // resolves the pending app:scanQr call
   const loaded = useRef(false)
   const queued = useRef([])
   // A slide show is on (src/ui/slides/Present.jsx): no status bar, the page
@@ -321,11 +318,16 @@ export default function App () {
     const { id, method, args } = msg
     const reply = (body) => inject('window.__psResponse(' + JSON.stringify({ id, ...body }) + ')')
     if (method === 'app:takeLink') { const url = pendingLink; pendingLink = null; return reply({ result: { url } }) }
-    if (method === 'app:scanQr') {
-      // Open the camera and answer with the first QR code read, or null if
-      // the person cancels or refuses the camera.
-      const text = await new Promise((resolve) => { scanDone.current = resolve; setScanning(true) })
-      return reply({ result: { text } })
+    if (method === 'app:cameraPermission') {
+      // The QR scanner runs in the page (src/ui/scanQr.js). Android's WebView
+      // gives it no camera without the app's CAMERA permission; iOS asks by
+      // itself when the page opens the camera.
+      let granted = true
+      if (Platform.OS === 'android') {
+        const perm = PermissionsAndroid.PERMISSIONS.CAMERA
+        granted = (await PermissionsAndroid.check(perm)) || (await PermissionsAndroid.request(perm)) === PermissionsAndroid.RESULTS.GRANTED
+      }
+      return reply({ result: { granted } })
     }
     if (method === 'app:presentStart') { setPresenting(true); return reply({ result: { mode: 'single' } }) }
     if (method === 'app:presentEnd') { setPresenting(false); return reply({ result: { ok: true } }) }
@@ -384,48 +386,18 @@ export default function App () {
           onRenderProcessGone={reloadPage}
           onContentProcessDidTerminate={reloadPage}
           keyboardDisplayRequiresUserAction={false}
+          // The QR scanner's camera (src/ui/scanQr.js, getUserMedia on the
+          // https://localhost/ page).
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={false}
+          mediaCapturePermissionGrantType='grant'
           style={{ flex: 1, backgroundColor: bg }}
         />
       </SafeAreaView>
-      {scanning && <Scanner onDone={(text) => { setScanning(false); const done = scanDone.current; scanDone.current = null; if (done) done(text) }} />}
     </SafeAreaProvider>
   )
 }
 
-// Full-screen QR scanner (the pattern PearCircle uses).
-function Scanner ({ onDone }) {
-  const [permission, requestPermission] = useCameraPermissions()
-  const read = useRef(false)
-  useEffect(() => {
-    if (!permission) return
-    if (!permission.granted && permission.canAskAgain) requestPermission()
-    else if (!permission.granted) onDone(null)
-  }, [permission])
-  return (
-    <Modal visible animationType='slide' onRequestClose={() => onDone(null)}>
-      {permission && permission.granted
-        ? (
-          <View style={{ flex: 1, backgroundColor: '#000' }}>
-            <CameraView
-              style={StyleSheet.absoluteFillObject}
-              facing='back'
-              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-              onBarcodeScanned={({ data }) => { if (!read.current && data) { read.current = true; onDone(String(data)) } }}
-            />
-            <View style={styles.scanHint}><Text style={styles.scanText}>Point at a PearOffice QR code</Text></View>
-            <TouchableOpacity accessibilityRole='button' style={styles.scanCancel} onPress={() => onDone(null)}>
-              <Text style={styles.scanText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-          )
-        : <View style={[styles.center, { backgroundColor: '#000' }]}><Text style={styles.scanText}>Waiting for camera permission...</Text></View>}
-    </Modal>
-  )
-}
-
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scanHint: { position: 'absolute', top: 70, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
-  scanCancel: { position: 'absolute', bottom: 60, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, paddingHorizontal: 28, paddingVertical: 14 },
-  scanText: { color: '#fff', fontSize: 16 }
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' }
 })
