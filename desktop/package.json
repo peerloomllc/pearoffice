@@ -1,6 +1,6 @@
 {
   "name": "pearoffice-desktop",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "private": true,
   "description": "PearOffice desktop app (Electron). Starts the shared Bare worklet and hosts the web UI.",
   "license": "MIT",
