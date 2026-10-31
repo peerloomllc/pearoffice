@@ -553,7 +553,8 @@ app.whenReady().then(async () => {
   if (stayRunning()) createTray()
   if (!SMOKE) log(win.isVisible() ? 'window shown' : 'started hidden in the tray')
   if (settings.runSeeder) startSeeder().catch((err) => log('seeder failed to start:', err.message))
-  updates = startUpdates({ app, log, onChange: setTrayMenu })
+  // Tell the windows too: the update bar otherwise asks only every 10 minutes.
+  updates = startUpdates({ app, log, onChange: () => { setTrayMenu(); sendAll({ name: 'app:updateChanged', data: {} }) } })
   if (SMOKE) {
     // Downloads (Export) go straight to the smoke test's data folder.
     win.webContents.session.on('will-download', (_e, item) => {

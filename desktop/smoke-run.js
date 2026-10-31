@@ -7,7 +7,7 @@
 const { helpers } = require('./smoke/common')
 
 // Parts run only when named: store-shots takes screenshots for the stores.
-const EXTRA_PARTS = ['store-shots']
+const EXTRA_PARTS = ['store-shots', 'update-bar']
 const PARTS = ['sheets', 'sheet-files', 'sheet-links', 'sheet-chips', 'templates', 'docs', 'doc-links', 'doc-chips', 'doc-dropdowns', 'doc-history', 'media-files', 'slides', 'slides-present', 'slides-objects', 'slides-style', 'slides-export', 'slides-import', 'slides-charts', 'folders', 'tags', 'windows', 'tabs', 'app', 'onboarding', 'onboarding-restore']
 
 async function run ({ app, win, ready, log, dataDir, getTray }) {
