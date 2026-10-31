@@ -830,6 +830,7 @@ if $PUBLISH_APP_STORE; then
     else
       echo "    WARNING: could not apply the listing text; set What's New in App Store Connect."
     fi
+    release_check_mac_space "${MAC_MINI_HOST:-Tims-Mac-mini.local}"
     _confirm "Archive, export, and upload to App Store Connect on ${MAC_MINI_HOST:-Tims-Mac-mini.local}?"
     if scripts/ios-appstore.sh; then
       _num=$(node -p "require('./app.json').expo.ios.buildNumber")
