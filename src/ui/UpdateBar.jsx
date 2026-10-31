@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { X } from '@phosphor-icons/react'
-import { call } from './bridge.js'
+import { call, on } from './bridge.js'
 
 // "PearOffice 0.2.0 is out" on desktop (proposals/2026-10-05-update-checker.md).
 // The desktop shell checks for releases; this shows what it found and asks it
@@ -27,7 +27,9 @@ export function UpdateBar () {
     load()
     // Faster while an update is downloading, so its progress shows.
     const t = setInterval(load, apply.status === 'running' ? 2000 : 10 * 60 * 1000)
-    return () => { stop = true; clearInterval(t) }
+    // Main says when a check finds something, about a minute after launch.
+    const off = on('app:updateChanged', load)
+    return () => { stop = true; clearInterval(t); off() }
   }, [apply.status])
 
   if (!update || !update.available) return null
