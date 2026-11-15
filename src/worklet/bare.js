@@ -14,4 +14,25 @@ require('./hypercoreSnapshotPatch').applySnapshotFlushFix(require('hypercore/lib
 
 const { createSheetEngine } = require('./engine')
 
-createSheetEngine().start()
+const engine = createSheetEngine()
+engine.start()
+
+// On the desktop the worklet is a child of Electron, talking over stdin. When
+// Electron goes away for any reason (a crash, a kill, a normal quit that never
+// sent app:close) the pipe closes. Without this the worklet ran on by itself,
+// kept the data folder locked, and the next launch could not open it
+// ("Cannot read properties of null (reading 'list')", found 2026-11-15).
+// Phones talk over BareKit IPC and never get here.
+if (typeof BareKit === 'undefined') {
+  let closing = false
+  const shutdown = () => {
+    if (closing) return
+    closing = true
+    // Give the stores a few seconds to close, then go regardless.
+    setTimeout(() => Bare.exit(0), 5000)
+    engine.close().catch(() => {}).then(() => Bare.exit(0))
+  }
+  const stdin = require('bare-process').stdin
+  stdin.on('end', shutdown)
+  stdin.on('close', shutdown)
+}
