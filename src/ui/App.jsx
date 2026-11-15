@@ -11,7 +11,7 @@ import { SlidesView } from './slides/SlidesView.jsx'
 import { JoinPanel, JoinProgress, JoinPill } from './JoinPanel.jsx'
 import { SeederPanel } from './SeederPanel.jsx'
 import { DevicesPanel } from './DevicesPanel.jsx'
-import { importFile, pickAndImport, isMobile } from './sheet/xlsx.js'
+import { importFile, importPicked, pickAndImport, isMobile } from './sheet/xlsx.js'
 import { Avatar, MemberAvatar } from './Avatar.jsx'
 import { SettingsPanel } from './SettingsPanel.jsx'
 import { UpdateBar } from './UpdateBar.jsx'
@@ -299,6 +299,27 @@ export function App () {
     if (r && r.notice) setNotice(r.notice)
     else if (r && r.dropped) setNotice('Some parts of this file, such as pictures, were left out.')
   }, [refresh, fileHere])
+
+  // Phones: a file another app opened PearOffice with (Android's Open with).
+  // The shell holds it until this page asks, so one that started the app
+  // is not lost.
+  useEffect(() => {
+    if (DESKTOP) return
+    const take = async () => {
+      try {
+        const r = await call('app:takeFile')
+        if (!r || !r.file) return
+        if (r.file.error) throw new Error(r.file.error)
+        const done = await importPicked(r.file)
+        await opened(done.sheetId, done)
+      } catch (err) {
+        setError('PearOffice could not open this file: ' + err.message)
+      }
+    }
+    const off = on('app:openFile', take)
+    take()
+    return off
+  }, [opened, setError])
 
   const soon = useRef(null)
   const refreshSoon = useCallback(() => {
