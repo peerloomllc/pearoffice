@@ -11,6 +11,19 @@
 const { spawn } = require('node:child_process')
 const { EventEmitter } = require('node:events')
 
+// What a person sees when the worklet could not open the data folder. A lock
+// error means another PearOffice process still has it open: usually an older
+// copy's worklet left running (see src/worklet/bare.js).
+function startError (err) {
+  const msg = String(err?.message || err)
+  if (/lock/i.test(msg)) {
+    const e = new Error('PearOffice could not open your files because another copy of PearOffice is still using them. Quit PearOffice (from its tray icon too), or restart your computer, then open it again.')
+    e.code = 'DATA_LOCKED'
+    return e
+  }
+  return new Error('PearOffice could not start: ' + msg)
+}
+
 class Worklet extends EventEmitter {
   constructor ({ barePath, bundlePath, dataDir, onLog }) {
     super()
@@ -23,6 +36,7 @@ class Worklet extends EventEmitter {
     this._nextId = 1
     this._pending = new Map()
     this._readyP = null
+    this._initError = null
   }
 
   start () {
@@ -41,7 +55,13 @@ class Worklet extends EventEmitter {
       this._failPending(err)
       this.emit('error', err)
     })
-    this._readyP = this.call('init', { dataDir: this._dataDir }, { timeoutMs: 60000 })
+    this._initError = null
+    this._readyP = this.call('init', { dataDir: this._dataDir }, { timeoutMs: 60000 }).catch((err) => {
+      // Every later call would fail with a confusing error from deep inside
+      // ("Cannot read properties of null"), so they get this one instead.
+      this._initError = startError(err)
+      throw this._initError
+    })
     return this._readyP
   }
 
@@ -52,6 +72,7 @@ class Worklet extends EventEmitter {
   }
 
   call (method, args = {}, { timeoutMs = 15000 } = {}) {
+    if (this._initError && method !== 'init') return Promise.reject(this._initError)
     if (!this._proc) return Promise.reject(new Error('worklet not running'))
     const id = this._nextId++
     return new Promise((resolve, reject) => {
@@ -111,4 +132,4 @@ class Worklet extends EventEmitter {
   }
 }
 
-module.exports = { Worklet }
+module.exports = { Worklet, startError }

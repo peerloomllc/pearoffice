@@ -87,6 +87,63 @@ async function main () {
   }
 }
 
+// The worklet must not outlive the desktop app (found 2026-11-15: an Electron
+// main process died, its worklet ran on and kept the data folder locked).
+//   1. a parent that holds the worklet is killed with SIGKILL: the worklet exits;
+//   2. while one worklet has the folder, a second one's start fails with the
+//      clear DATA_LOCKED message, and so do its later calls;
+//   3. once the first is gone, a new one opens the folder.
+async function orphanCheck (bare) {
+  const { Worklet } = require('../desktop/worklet')
+  const bundle = path.join(root, 'dist', 'worklet', 'worklet.bundle')
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pearoffice-orphan-'))
+  const alive = (pid) => { try { process.kill(pid, 0); return true } catch { return false } }
+  const waitGone = async (pid, ms) => {
+    const end = Date.now() + ms
+    while (Date.now() < end) { if (!alive(pid)) return true; await new Promise((resolve) => setTimeout(resolve, 200)) }
+    return false
+  }
+  let parent = null
+  let workletPid = null
+  try {
+    const script = `const { Worklet } = require(${JSON.stringify(path.join(root, 'desktop', 'worklet.js'))})
+const w = new Worklet({ barePath: ${JSON.stringify(bare)}, bundlePath: ${JSON.stringify(bundle)}, dataDir: ${JSON.stringify(dataDir)} })
+w.start().then(() => console.log('pid ' + w._proc.pid), (e) => { console.log('fail ' + e.message); process.exit(1) })
+setInterval(() => {}, 1000)`
+    parent = spawn(process.execPath, ['-e', script], { stdio: ['ignore', 'pipe', 'inherit'] })
+    workletPid = await new Promise((resolve, reject) => {
+      let out = ''
+      parent.stdout.on('data', (c) => {
+        out += c
+        const m = out.match(/pid (\d+)/)
+        if (m) resolve(Number(m[1]))
+        if (/fail /.test(out)) reject(new Error(out.trim()))
+      })
+      parent.once('exit', () => reject(new Error('parent exited early: ' + out.trim())))
+    })
+
+    const second = new Worklet({ barePath: bare, bundlePath: bundle, dataDir })
+    await assert.rejects(second.start(), (err) => err.code === 'DATA_LOCKED' && /another copy of PearOffice/.test(err.message))
+    await assert.rejects(second.call('sheet:list', {}), (err) => err.code === 'DATA_LOCKED')
+    await second.stop()
+    console.log('ok - a second worklet on a folder in use says so plainly')
+
+    parent.kill('SIGKILL')
+    assert.equal(await waitGone(workletPid, 10000), true, 'worklet still running 10 s after its parent was killed')
+    console.log('ok - the worklet exits when the app holding it is killed')
+
+    const third = new Worklet({ barePath: bare, bundlePath: bundle, dataDir })
+    await third.start()
+    assert.equal(Array.isArray(await third.call('sheet:list', {})), true)
+    await third.stop()
+    console.log('ok - the folder opens again once the old worklet is gone')
+  } finally {
+    if (parent) try { parent.kill('SIGKILL') } catch {}
+    if (workletPid && alive(workletPid)) try { process.kill(workletPid, 'SIGKILL') } catch {}
+    fs.rmSync(dataDir, { recursive: true, force: true })
+  }
+}
+
 async function seederCheck (bare) {
   require('./build-seeder')
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pearoffice-seeder-'))
@@ -164,7 +221,7 @@ async function dashboardCheck () {
   }
 }
 
-main().then(() => seederCheck(barePath())).then(() => dashboardCheck()).catch((err) => {
+main().then(() => orphanCheck(barePath())).then(() => seederCheck(barePath())).then(() => dashboardCheck()).catch((err) => {
   console.error('not ok -', err.message)
   process.exit(1)
 })
