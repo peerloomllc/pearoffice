@@ -2,7 +2,7 @@
   "expo": {
     "name": "PearOffice",
     "slug": "pearoffice",
-    "version": "1.1.6",
+    "version": "1.1.7",
     "newArchEnabled": true,
     "orientation": "default",
     "scheme": "pearoffice",
@@ -10,7 +10,7 @@
     "icon": "./assets/images/icon.png",
     "android": {
       "package": "com.pearoffice",
-      "versionCode": 10,
+      "versionCode": 11,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#00271b"
@@ -138,7 +138,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.pearoffice",
-      "buildNumber": "10",
+      "buildNumber": "11",
       "supportsTablet": true,
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "PearOffice connects directly to the people you share files with, and to your own devices, on your Wi-Fi.",
