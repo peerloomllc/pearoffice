@@ -817,12 +817,17 @@ if $PUBLISH_APP_STORE; then
   echo "==> App Store: $APP_VERSION"
   _vid=$(_asc_version_id "$APP_VERSION")
   if [ -z "$_vid" ]; then
-    _vid=$(asc versions create --app "$ASC_APP_ID" --version "$APP_VERSION" --platform IOS --output json 2>/dev/null \
+    _create_err=$(mktemp)
+    _vid=$(asc versions create --app "$ASC_APP_ID" --version "$APP_VERSION" --platform IOS --output json 2>"$_create_err" \
       | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])" 2>/dev/null || echo "")
+    # Apple can make the version but send back a reply we cannot read (seen on
+    # 1.1.7). Look it up again before calling it a failure.
+    if [ -z "$_vid" ]; then sleep 10; _vid=$(_asc_version_id "$APP_VERSION"); fi
   fi
   if [ -z "$_vid" ]; then
     PUBLISH_FAILED=true; APP_STORE_FAILED=true
     echo "    ERROR: could not find or create App Store version $APP_VERSION."
+    [ -s "${_create_err:-}" ] && sed 's/^/    /' "$_create_err"
   else
     echo "    Version record: $_vid"
     if asc metadata apply --app "$ASC_APP_ID" --version "$APP_VERSION" --dir metadata/ios >/dev/null; then
