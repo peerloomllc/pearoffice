@@ -80,6 +80,50 @@
               "mimeType": "application/pdf"
             }
           ]
+        },
+        {
+          "action": "SEND",
+          "category": [
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            },
+            {
+              "mimeType": "application/vnd.ms-excel"
+            },
+            {
+              "mimeType": "application/vnd.oasis.opendocument.spreadsheet"
+            },
+            {
+              "mimeType": "text/csv"
+            },
+            {
+              "mimeType": "text/comma-separated-values"
+            },
+            {
+              "mimeType": "text/tab-separated-values"
+            },
+            {
+              "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            },
+            {
+              "mimeType": "application/vnd.oasis.opendocument.text"
+            },
+            {
+              "mimeType": "text/markdown"
+            },
+            {
+              "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            },
+            {
+              "mimeType": "application/vnd.oasis.opendocument.presentation"
+            },
+            {
+              "mimeType": "application/pdf"
+            }
+          ]
         }
       ],
       "permissions": [
@@ -106,7 +150,49 @@
           "lightning"
         ],
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryAddUsageDescription": "PearOffice saves pictures and exported files to your photos when you choose to."
+        "NSPhotoLibraryAddUsageDescription": "PearOffice saves pictures and exported files to your photos when you choose to.",
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "Spreadsheet",
+            "CFBundleTypeRole": "Editor",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "org.openxmlformats.spreadsheetml.sheet",
+              "com.microsoft.excel.xls",
+              "org.oasis-open.opendocument.spreadsheet",
+              "public.comma-separated-values-text",
+              "public.tab-separated-values-text"
+            ]
+          },
+          {
+            "CFBundleTypeName": "Document",
+            "CFBundleTypeRole": "Editor",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "org.openxmlformats.wordprocessingml.document",
+              "org.oasis-open.opendocument.text",
+              "net.daringfireball.markdown"
+            ]
+          },
+          {
+            "CFBundleTypeName": "Presentation",
+            "CFBundleTypeRole": "Editor",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "org.openxmlformats.presentationml.presentation",
+              "org.oasis-open.opendocument.presentation"
+            ]
+          },
+          {
+            "CFBundleTypeName": "PDF",
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "com.adobe.pdf"
+            ]
+          }
+        ],
+        "LSSupportsOpeningDocumentsInPlace": false
       }
     },
     "plugins": [

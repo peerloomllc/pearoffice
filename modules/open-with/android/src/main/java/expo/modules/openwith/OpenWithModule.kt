@@ -1,6 +1,8 @@
 package expo.modules.openwith
 
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.OpenableColumns
 import java.io.File
 import expo.modules.kotlin.modules.Module
@@ -11,6 +13,25 @@ import expo.modules.kotlin.modules.ModuleDefinition
 class OpenWithModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("OpenWith")
+
+    // Share to PearOffice: a SEND intent carries the file as an extra, which
+    // React Native's Linking never sees. The page asks with takeShared() once
+    // ready (the one that started the app) and hears "onShared" for later ones.
+    Events("onShared")
+
+    Function("takeShared") {
+      val activity = appContext.currentActivity ?: return@Function null
+      val uri = sharedUri(activity.intent) ?: return@Function null
+      // Once taken, a rebuilt activity must not import it again.
+      activity.intent = Intent(activity.intent).setAction(Intent.ACTION_MAIN)
+      uri.toString()
+    }
+
+    OnNewIntent { intent ->
+      val uri = sharedUri(intent) ?: return@OnNewIntent
+      appContext.currentActivity?.intent = Intent(intent).setAction(Intent.ACTION_MAIN)
+      sendEvent("onShared", mapOf("uri" to uri.toString()))
+    }
 
     AsyncFunction("fileInfo") { uriString: String ->
       val context = appContext.reactContext ?: return@AsyncFunction mapOf("name" to null, "mime" to null)
@@ -50,5 +71,11 @@ class OpenWithModule : Module() {
       }
       Uri.fromFile(dest).toString()
     }
+  }
+
+  private fun sharedUri (intent: Intent?): Uri? {
+    if (intent == null || intent.action != Intent.ACTION_SEND) return null
+    return if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+    else @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_STREAM)
   }
 }

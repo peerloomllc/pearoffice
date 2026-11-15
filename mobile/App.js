@@ -18,7 +18,7 @@ import * as Clipboard from 'expo-clipboard'
 import * as Haptics from 'expo-haptics'
 import b4a from 'b4a'
 import { requestLocalNetworkPermission } from '../modules/local-network'
-import { copyToCache, fileInfo } from '../modules/open-with'
+import { copyToCache, fileInfo, onShared, takeShared } from '../modules/open-with'
 import { isPearcalLink } from '../src/shared/pearcal'
 
 const ALLOWED = /^(sheet|file|doc|slides|media|app|seeder|link|donation):[A-Za-z]+$/
@@ -167,14 +167,21 @@ async function readOpenedFile (uri) {
   const info = await fileInfo(uri)
   const mime = (info && info.mime) || null
   const ext = EXT_FOR_MIME[mime]
-  let name = (info && info.name) || ('Opened file' + (ext ? '.' + ext : ''))
+  // iOS hands over a file:// copy in the app's Inbox, named as the original.
+  const fromPath = /^file:/.test(uri) ? decodeURIComponent(uri.split('/').pop() || '') : ''
+  let name = (info && info.name) || fromPath || ('Opened file' + (ext ? '.' + ext : ''))
   if (ext && !/\.[a-z0-9]+$/i.test(name)) name += '.' + ext
   // 25 MB is the largest PDF or picture PearOffice keeps (src/media/).
+  // The page shows these messages; the details go to the log.
   let local
-  try { local = /^content:/.test(uri) ? await copyToCache(uri, 25 * 1024 * 1024) : uri } catch (err) {
-    throw new Error(/too large/.test(String(err && err.message)) ? 'This file is larger than 25 MB.' : String(err && err.message))
+  let base64
+  try {
+    local = /^content:/.test(uri) ? await copyToCache(uri, 25 * 1024 * 1024) : uri
+    base64 = await FileSystem.readAsStringAsync(local, { encoding: FileSystem.EncodingType.Base64 })
+  } catch (err) {
+    console.log('[pearoffice] reading the file failed ' + (err && err.message))
+    throw new Error(/too large/.test(String(err && err.message)) ? 'It is larger than 25 MB.' : 'It could not be read.')
   }
-  const base64 = await FileSystem.readAsStringAsync(local, { encoding: FileSystem.EncodingType.Base64 })
   if (local !== uri) FileSystem.deleteAsync(local, { idempotent: true }).catch(() => {})
   return { name, mime, base64 }
 }
@@ -308,7 +315,10 @@ export default function App () {
     }
     Linking.getInitialURL().then(sendLink).catch(() => {})
     const sub = Linking.addEventListener('url', ({ url }) => sendLink(url))
-    return () => { alive = false; listeners.delete(onEvent); sub.remove() }
+    // Share to PearOffice (Android): the same as Open with from here on.
+    sendLink(takeShared())
+    const offShared = onShared(sendLink)
+    return () => { alive = false; listeners.delete(onEvent); sub.remove(); offShared() }
   }, [])
 
   // GrapheneOS: Vanadium's renderer, frozen while the app is in the

@@ -313,7 +313,7 @@ export function App () {
         const done = await importPicked(r.file)
         await opened(done.sheetId, done)
       } catch (err) {
-        setError('PearOffice could not open this file: ' + err.message)
+        setError('PearOffice could not open this file. ' + err.message)
       }
     }
     const off = on('app:openFile', take)

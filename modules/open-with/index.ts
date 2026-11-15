@@ -18,3 +18,16 @@ export async function copyToCache (uri: string, maxBytes: number): Promise<strin
   if (!native) throw new Error('not available')
   return native.copyToCache(uri, maxBytes)
 }
+
+// Share to PearOffice (Android SEND). takeShared gives the file that started
+// the app, once; onShared calls back for each one shared while it runs.
+export function takeShared (): string | null {
+  if (!native) return null
+  try { return native.takeShared() } catch { return null }
+}
+
+export function onShared (fn: (uri: string) => void): () => void {
+  if (!native) return () => {}
+  const sub = native.addListener('onShared', (e: { uri: string }) => fn(e.uri))
+  return () => sub.remove()
+}
