@@ -18,6 +18,7 @@ import * as Clipboard from 'expo-clipboard'
 import * as Haptics from 'expo-haptics'
 import b4a from 'b4a'
 import { requestLocalNetworkPermission } from '../modules/local-network'
+import { copyToCache, fileInfo } from '../modules/open-with'
 import { isPearcalLink } from '../src/shared/pearcal'
 
 const ALLOWED = /^(sheet|file|doc|slides|media|app|seeder|link|donation):[A-Za-z]+$/
@@ -142,6 +143,41 @@ async function shellMethod (method, args) {
 // The most recent pearoffice:// link, kept until the UI asks for it
 // (app:takeLink), so a link that arrives before the UI is listening is not lost.
 let pendingLink = null
+// A file another app opened PearOffice with, until the page takes it.
+let pendingFile = null
+
+// Extensions for when the sending app gives no file name. The import picks
+// its reader by extension (src/ui/sheet/xlsx.js importPicked).
+const EXT_FOR_MIME = {
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.ms-excel': 'xls',
+  'application/vnd.oasis.opendocument.spreadsheet': 'ods',
+  'text/csv': 'csv',
+  'text/comma-separated-values': 'csv',
+  'text/tab-separated-values': 'tsv',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.oasis.opendocument.text': 'odt',
+  'text/markdown': 'md',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+  'application/vnd.oasis.opendocument.presentation': 'odp',
+  'application/pdf': 'pdf'
+}
+
+async function readOpenedFile (uri) {
+  const info = await fileInfo(uri)
+  const mime = (info && info.mime) || null
+  const ext = EXT_FOR_MIME[mime]
+  let name = (info && info.name) || ('Opened file' + (ext ? '.' + ext : ''))
+  if (ext && !/\.[a-z0-9]+$/i.test(name)) name += '.' + ext
+  // 25 MB is the largest PDF or picture PearOffice keeps (src/media/).
+  let local
+  try { local = /^content:/.test(uri) ? await copyToCache(uri, 25 * 1024 * 1024) : uri } catch (err) {
+    throw new Error(/too large/.test(String(err && err.message)) ? 'This file is larger than 25 MB.' : String(err && err.message))
+  }
+  const base64 = await FileSystem.readAsStringAsync(local, { encoding: FileSystem.EncodingType.Base64 })
+  if (local !== uri) FileSystem.deleteAsync(local, { idempotent: true }).catch(() => {})
+  return { name, mime, base64 }
+}
 
 let worklet = null
 let started = null
@@ -254,6 +290,17 @@ export default function App () {
     listeners.add(onEvent)
     // pearoffice:// links (invites, seeder pairing) go to the UI.
     const sendLink = (url) => {
+      if (url && /^(content|file):\/\//.test(url)) {
+        console.log('[pearoffice] opened with a file')
+        readOpenedFile(url)
+          .then((file) => { pendingFile = file; onEvent('app:openFile', {}) })
+          .catch((err) => {
+            console.log('[pearoffice] open file failed ' + (err && err.message))
+            pendingFile = { error: String(err && err.message ? err.message : err) }
+            onEvent('app:openFile', {})
+          })
+        return
+      }
       if (!url || !url.startsWith('pearoffice://')) return
       console.log('[pearoffice] link ' + url.slice(0, 40))
       pendingLink = url
@@ -318,6 +365,7 @@ export default function App () {
     const { id, method, args } = msg
     const reply = (body) => inject('window.__psResponse(' + JSON.stringify({ id, ...body }) + ')')
     if (method === 'app:takeLink') { const url = pendingLink; pendingLink = null; return reply({ result: { url } }) }
+    if (method === 'app:takeFile') { const file = pendingFile; pendingFile = null; return reply({ result: { file } }) }
     if (method === 'app:cameraPermission') {
       // The QR scanner runs in the page (src/ui/scanQr.js). Android's WebView
       // gives it no camera without the app's CAMERA permission; iOS asks by

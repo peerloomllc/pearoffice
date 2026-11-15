@@ -111,6 +111,12 @@ export async function pickAndImport ({ photo = false } = {}) {
     const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
     picked.name = 'Photo ' + day + '.' + ({ 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/heic': 'heic' }[picked.mime] || 'jpg')
   }
+  return importPicked(picked)
+}
+
+// A file from the shell as { name, base64 }: picked, or handed over by
+// another app ("Open with" on Android, mobile/App.js app:takeFile).
+export async function importPicked (picked) {
   const bytes = Uint8Array.from(atob(picked.base64), (ch) => ch.charCodeAt(0))
   if (isMediaFile(picked.name)) return importMedia(bytes, picked.name)
   if (isPptxFile(picked.name)) return importPresentation(bytes, picked.name)

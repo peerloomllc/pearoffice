@@ -1,0 +1,9 @@
+{
+  "name": "open-with",
+  "version": "1.0.0",
+  "description": "Name and type of a file another Android app opened PearOffice with",
+  "main": "index.ts",
+  "license": "MIT",
+  "author": "PeerLoom",
+  "homepage": "https://peerloomllc.com"
+}
